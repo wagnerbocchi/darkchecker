@@ -13,7 +13,8 @@ import pytest
 import respx
 
 from backend.config import Settings
-from backend.services import aggregator, hibp, passwords, xposedornot
+from backend.services import aggregator, demo_data, hibp, passwords, xposedornot
+from backend.services.aggregator import SourcesUnavailableError
 
 
 # ---------------------------------------------------------------------------
@@ -219,3 +220,55 @@ async def test_aggregator_no_demo_when_source_ok_and_clean():
     result = await aggregator.check_email("clean@example.com", settings)
     assert result["is_demo"] is False
     assert result["breached"] is False
+
+
+# --- Regressões: achados da revisão adversarial -----------------------------
+@respx.mock
+async def test_aggregator_raises_when_all_fail_and_no_demo():
+    """Apagão total sem demo NÃO pode virar 'limpo' — deve sinalizar falha."""
+    respx.get("https://api.xposedornot.com/v1/breach-analytics").mock(
+        side_effect=httpx.ConnectError("down")
+    )
+    settings = Settings(hibp_api_key=None, demo_fallback=False)
+    with pytest.raises(SourcesUnavailableError):
+        await aggregator.check_email("user@example.com", settings)
+
+
+@respx.mock
+async def test_aggregator_demo_fallback_on_non_json_body():
+    """HTTP 200 com corpo não-JSON (proxy/portal) não deve virar 500."""
+    respx.get("https://api.xposedornot.com/v1/breach-analytics").mock(
+        return_value=httpx.Response(200, text="<html>captive portal</html>")
+    )
+    settings = Settings(hibp_api_key=None, demo_fallback=True)
+    result = await aggregator.check_email("user@example.com", settings)
+    assert result["is_demo"] is True
+
+
+@respx.mock
+async def test_xposedornot_analytics_error_raises_not_silently_clean():
+    """429 na análise deve levantar (para acionar o demo), não cair no resumo."""
+    respx.get("https://api.xposedornot.com/v1/breach-analytics").mock(
+        return_value=httpx.Response(429, text="rate limited")
+    )
+    with pytest.raises(httpx.HTTPStatusError):
+        await xposedornot.check_email("user@test.com")
+
+
+async def test_check_password_reraises_as_sources_unavailable_without_demo():
+    settings = Settings(demo_fallback=False)
+    with respx.mock:
+        respx.get(url__regex=r"https://api\.pwnedpasswords\.com/range/.*").mock(
+            side_effect=httpx.ConnectError("down")
+        )
+        with pytest.raises(SourcesUnavailableError):
+            await aggregator.check_password("qualquer-senha", settings)
+
+
+def test_demo_password_count_never_zero_when_pwned():
+    """Achado low: pwned=True com count=0 é contraditório; count deve ser >= 1."""
+    # Senha patológica cujo soma de ords = 250000 (múltiplo que zerava o módulo).
+    pathological = "z" * 2049 + chr(22)  # 2049*122 + 22 == 250000
+    result = demo_data.demo_password_result(pathological)
+    if result["pwned"]:
+        assert result["count"] >= 1

@@ -17,6 +17,21 @@ from . import demo_data, hibp, passwords, xposedornot
 logger = logging.getLogger("darkchecker")
 
 
+class SourcesUnavailableError(RuntimeError):
+    """Nenhuma fonte externa respondeu e o modo demonstração está desativado.
+
+    Sinaliza uma FALHA da verificação (para virar HTTP 503), evitando que um
+    apagão total das fontes seja reportado como um resultado "limpo".
+    """
+
+
+# Erros que representam uma falha da fonte externa (rede OU corpo inválido).
+# `ValueError` cobre `json.JSONDecodeError`, levantado por `response.json()`
+# quando a fonte devolve HTTP 200 com um corpo que não é JSON (ex.: HTML de
+# um proxy/portal cativo).
+SOURCE_ERRORS: tuple[type[Exception], ...] = (httpx.HTTPError, ValueError)
+
+
 def _dedupe(breaches: list[dict]) -> list[dict]:
     """Remove vazamentos duplicados entre fontes, priorizando o mais detalhado.
 
@@ -90,7 +105,7 @@ async def check_email(email: str, settings: Settings) -> dict:
         breaches.extend(xon)
         sources_queried.append("xposedornot")
         any_source_ok = True
-    except httpx.HTTPError as exc:
+    except SOURCE_ERRORS as exc:
         logger.warning("Falha no XposedOrNot: %s", exc)
         notes.append("Fonte XposedOrNot indisponível no momento.")
 
@@ -106,7 +121,7 @@ async def check_email(email: str, settings: Settings) -> dict:
             breaches.extend(hb)
             sources_queried.append("hibp")
             any_source_ok = True
-        except httpx.HTTPError as exc:
+        except SOURCE_ERRORS as exc:
             logger.warning("Falha no HIBP: %s", exc)
             notes.append("Fonte HIBP indisponível ou chave inválida.")
 
@@ -119,6 +134,14 @@ async def check_email(email: str, settings: Settings) -> dict:
         notes.append(
             "Nenhuma fonte externa respondeu — exibindo DADOS FICTÍCIOS de "
             "demonstração. Não representam vazamentos reais."
+        )
+
+    # 4) Apagão total sem demonstração: NÃO reportar "limpo". Sinalizar falha
+    #    para que o endpoint responda 503 em vez de um falso resultado seguro.
+    if not any_source_ok and not is_demo:
+        raise SourcesUnavailableError(
+            "Nenhuma fonte de vazamento respondeu e o modo demonstração está "
+            "desativado; impossível determinar a exposição do e-mail."
         )
 
     breaches = _dedupe(breaches)
@@ -145,8 +168,11 @@ async def check_password(password: str, settings: Settings) -> dict:
     """Verifica uma senha via k-anonimato, com fallback de demonstração."""
     try:
         return await passwords.check_password(password, timeout=settings.http_timeout)
-    except httpx.HTTPError as exc:
+    except SOURCE_ERRORS as exc:
         logger.warning("Falha no Pwned Passwords: %s", exc)
         if settings.demo_fallback:
             return demo_data.demo_password_result(password)
-        raise
+        raise SourcesUnavailableError(
+            "A API de verificação de senha está indisponível e o modo "
+            "demonstração está desativado."
+        ) from exc

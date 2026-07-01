@@ -75,6 +75,12 @@ async def check_email(email: str, *, timeout: float = 10.0) -> list[dict]:
             detailed = _parse_analytics(analytics.json())
             if detailed:
                 return detailed
+        elif analytics.status_code != 404:
+            # 429/403/5xx neste endpoint é FALHA da fonte, não "sem vazamento".
+            # Levanta para o agregador acionar o modo demo, em vez de cair no
+            # resumo e arriscar reportar "limpo" indevidamente. (404 = seguir
+            # para o resumo, que é o verificador autoritativo de não-encontrado.)
+            analytics.raise_for_status()
 
         # 2) Fallback: endpoint de resumo, que devolve só os nomes.
         summary = await client.get(

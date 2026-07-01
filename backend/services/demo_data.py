@@ -74,7 +74,9 @@ def demo_breaches_for(email: str) -> list[dict]:
 def demo_password_result(password: str) -> dict:
     seed = sum(ord(c) for c in password)
     pwned = seed % 3 != 0
-    count = (seed * 37) % 250_000 if pwned else 0
+    # `+ 1` garante count >= 1 quando pwned, evitando o resultado contraditório
+    # "comprometida com 0 aparições" (o módulo poderia zerar para certas senhas).
+    count = (seed * 37) % 250_000 + 1 if pwned else 0
     from .passwords import advice_for, sha1_upper
 
     return {
