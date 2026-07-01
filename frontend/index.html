@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DarkChecker — Verificador de Vazamento de Dados</title>
+  <meta
+    name="description"
+    content="Projeto acadêmico: verifique se seu e-mail ou senha apareceu em vazamentos de dados conhecidos, usando fontes legítimas."
+  />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="brand">
+      <span class="logo">🕵️</span>
+      <div>
+        <h1>Dark<span class="accent">Checker</span></h1>
+        <p class="tagline">Seus dados estão à venda no mundo sem leis?</p>
+      </div>
+    </div>
+    <span class="badge">Projeto acadêmico · uso não comercial</span>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="email" role="tab">📧 Verificar e-mail</button>
+    <button class="tab" data-tab="password" role="tab">🔑 Verificar senha</button>
+    <button class="tab" data-tab="learn" role="tab">📚 Como funciona</button>
+  </nav>
+
+  <main>
+    <!-- ================= E-MAIL ================= -->
+    <section id="panel-email" class="panel active" role="tabpanel">
+      <p class="lead">
+        Digite um e-mail para descobrir em quais vazamentos de dados públicos
+        ele já apareceu. Consultamos apenas <strong>fontes legítimas</strong>
+        (XposedOrNot e, opcionalmente, Have I Been Pwned).
+      </p>
+      <form id="email-form" class="check-form" autocomplete="off">
+        <input
+          type="email"
+          id="email-input"
+          placeholder="voce@exemplo.com"
+          required
+          aria-label="E-mail"
+        />
+        <button type="submit">Verificar</button>
+      </form>
+      <p class="privacy-note">
+        🔒 O e-mail é usado apenas para a consulta e não é armazenado por esta aplicação.
+      </p>
+      <div id="email-result" class="result" aria-live="polite"></div>
+    </section>
+
+    <!-- ================= SENHA ================= -->
+    <section id="panel-password" class="panel" role="tabpanel" hidden>
+      <p class="lead">
+        Verifique se uma senha já vazou — sem nunca enviá-la pela rede. Usamos
+        <strong>k-anonimato</strong>: só os 5 primeiros caracteres do hash SHA-1
+        saem do servidor. <a href="#" data-goto="learn">Entenda a técnica →</a>
+      </p>
+      <form id="password-form" class="check-form" autocomplete="off">
+        <input
+          type="password"
+          id="password-input"
+          placeholder="Digite uma senha para testar"
+          required
+          aria-label="Senha"
+        />
+        <button type="button" id="toggle-pass" class="ghost" aria-label="Mostrar senha">👁</button>
+        <button type="submit">Verificar</button>
+      </form>
+      <p class="privacy-note">
+        🔒 A senha nunca é armazenada nem enviada por completo. Ainda assim,
+        evite digitar sua senha real — use uma de teste.
+      </p>
+      <div id="password-result" class="result" aria-live="polite"></div>
+    </section>
+
+    <!-- ================= APRENDER ================= -->
+    <section id="panel-learn" class="panel" role="tabpanel" hidden>
+      <div id="learn-content" class="learn">
+        <p class="lead">Carregando conteúdo educacional…</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      DarkChecker — desenvolvido para fins <strong>acadêmicos</strong>. Utiliza
+      apenas dados de vazamentos já indexados por serviços legítimos de
+      segurança. <strong>Nenhum</strong> dado é raspado da dark web por esta
+      aplicação.
+    </p>
+    <p class="muted">
+      Fontes: Have I Been Pwned · XposedOrNot · Pwned Passwords (k-anonimato)
+    </p>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+# Ambiente
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.python-version
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+
+# Node (caso um dia se adicione tooling de frontend)
+node_modules/
