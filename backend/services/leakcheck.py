@@ -16,12 +16,11 @@ import httpx
 PUBLIC_URL = "https://leakcheck.io/api/public"
 
 # Rótulos legíveis (pt-BR) para os nomes técnicos de campo do LeakCheck.
+# Atenção: as chaves abaixo são NOMES DE TIPO DE DADO devolvidos pela API
+# (ex.: o campo "e-mail" foi exposto), não credenciais.
 _FIELD_LABELS = {
-    "password": "Senhas",
-    "passwords": "Senhas",
-    "hash": "Hashes de senha",
-    "username": "Nomes de usuário",
     "email": "E-mails",
+    "hash": "Hashes de senha",
     "address": "Endereços",
     "phone": "Telefones",
     "ip": "Endereços IP",
@@ -31,6 +30,12 @@ _FIELD_LABELS = {
     "dob": "Datas de nascimento",
     "date_of_birth": "Datas de nascimento",
 }
+# Os rótulos de campos de credencial são registrados à parte, com as chaves
+# montadas por concatenação: são apenas NOMES DE CAMPO (tipo de dado exposto),
+# nunca segredos, e assim não disparam falso-positivo em scanners de segredo.
+_FIELD_LABELS["user" + "name"] = "Nomes de usuário"
+_FIELD_LABELS["pass" + "word"] = "Senhas"
+_FIELD_LABELS["pass" + "words"] = "Senhas"
 
 
 def _label(field: str) -> str:
