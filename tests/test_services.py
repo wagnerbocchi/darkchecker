@@ -13,7 +13,14 @@ import pytest
 import respx
 
 from backend.config import Settings
-from backend.services import aggregator, demo_data, hibp, passwords, xposedornot
+from backend.services import (
+    aggregator,
+    demo_data,
+    hibp,
+    leakcheck,
+    passwords,
+    xposedornot,
+)
 from backend.services.aggregator import SourcesUnavailableError
 
 
@@ -202,7 +209,7 @@ async def test_aggregator_demo_fallback_when_sources_fail():
     respx.get("https://api.xposedornot.com/v1/breach-analytics").mock(
         side_effect=httpx.ConnectError("down")
     )
-    settings = Settings(hibp_api_key=None, demo_fallback=True)
+    settings = Settings(hibp_api_key=None, demo_fallback=True, leakcheck_enabled=False)
     result = await aggregator.check_email("demo-user@example.com", settings)
     assert result["is_demo"] is True
     assert "demo" in result["sources_queried"]
@@ -216,7 +223,7 @@ async def test_aggregator_no_demo_when_source_ok_and_clean():
     respx.get(url__regex=r"https://api\.xposedornot\.com/v1/check-email/.*").mock(
         return_value=httpx.Response(404, json={"Error": "Not found"})
     )
-    settings = Settings(hibp_api_key=None, demo_fallback=True)
+    settings = Settings(hibp_api_key=None, demo_fallback=True, leakcheck_enabled=False)
     result = await aggregator.check_email("clean@example.com", settings)
     assert result["is_demo"] is False
     assert result["breached"] is False
@@ -229,7 +236,7 @@ async def test_aggregator_raises_when_all_fail_and_no_demo():
     respx.get("https://api.xposedornot.com/v1/breach-analytics").mock(
         side_effect=httpx.ConnectError("down")
     )
-    settings = Settings(hibp_api_key=None, demo_fallback=False)
+    settings = Settings(hibp_api_key=None, demo_fallback=False, leakcheck_enabled=False)
     with pytest.raises(SourcesUnavailableError):
         await aggregator.check_email("user@example.com", settings)
 
@@ -240,7 +247,7 @@ async def test_aggregator_demo_fallback_on_non_json_body():
     respx.get("https://api.xposedornot.com/v1/breach-analytics").mock(
         return_value=httpx.Response(200, text="<html>captive portal</html>")
     )
-    settings = Settings(hibp_api_key=None, demo_fallback=True)
+    settings = Settings(hibp_api_key=None, demo_fallback=True, leakcheck_enabled=False)
     result = await aggregator.check_email("user@example.com", settings)
     assert result["is_demo"] is True
 
@@ -272,3 +279,86 @@ def test_demo_password_count_never_zero_when_pwned():
     result = demo_data.demo_password_result(pathological)
     if result["pwned"]:
         assert result["count"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# LeakCheck (fonte gratuita adicional)
+# ---------------------------------------------------------------------------
+@respx.mock
+async def test_leakcheck_parsing_found():
+    payload = {
+        "success": True,
+        "found": 2,
+        "fields": ["email", "password", "username"],
+        "sources": [
+            {"name": "SomeBreach", "date": "2019-05"},
+            {"name": "OtherBreach", "date": "2021-01"},
+        ],
+    }
+    respx.get("https://leakcheck.io/api/public").mock(
+        return_value=httpx.Response(200, json=payload)
+    )
+    result = await leakcheck.check_email("vitima@test.com")
+    assert {b["name"] for b in result} == {"SomeBreach", "OtherBreach"}
+    assert all(b["source"] == "leakcheck" for b in result)
+    # `fields` viram data_classes traduzidas.
+    assert "Senhas" in result[0]["data_classes"]
+
+
+@respx.mock
+async def test_leakcheck_not_found():
+    respx.get("https://leakcheck.io/api/public").mock(
+        return_value=httpx.Response(200, json={"success": False, "error": "Not found"})
+    )
+    result = await leakcheck.check_email("limpo@test.com")
+    assert result == []
+
+
+@respx.mock
+async def test_leakcheck_rate_limit_raises():
+    respx.get("https://leakcheck.io/api/public").mock(
+        return_value=httpx.Response(429, json={"error": "Too many requests"})
+    )
+    with pytest.raises(httpx.HTTPStatusError):
+        await leakcheck.check_email("vitima@test.com")
+
+
+@respx.mock
+async def test_aggregator_combines_xposedornot_and_leakcheck():
+    """Duas fontes gratuitas devem ser consultadas e agregadas."""
+    # XposedOrNot encontra um vazamento.
+    respx.get("https://api.xposedornot.com/v1/breach-analytics").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "ExposedBreaches": {
+                    "breaches_details": [
+                        {
+                            "breach": "XonBreach",
+                            "xposed_data": "Email;Passwords",
+                            "xposed_date": "2018",
+                            "xposed_records": 500,
+                        }
+                    ]
+                }
+            },
+        )
+    )
+    # LeakCheck encontra outro.
+    respx.get("https://leakcheck.io/api/public").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "found": 1,
+                "fields": ["email", "phone"],
+                "sources": [{"name": "LcBreach", "date": "2020-03"}],
+            },
+        )
+    )
+    settings = Settings(hibp_api_key=None, demo_fallback=True)
+    result = await aggregator.check_email("vitima@test.com", settings)
+    assert result["is_demo"] is False
+    assert set(result["sources_queried"]) == {"xposedornot", "leakcheck"}
+    names = {b["name"] for b in result["breaches"]}
+    assert names == {"XonBreach", "LcBreach"}

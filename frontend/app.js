@@ -225,8 +225,8 @@ const LEARN_HTML = `
 
   <h3>1. Verificação de e-mail</h3>
   <p>
-    Enviamos o e-mail a APIs legítimas (XposedOrNot, gratuita; e opcionalmente
-    o Have I Been Pwned) que respondem <em>apenas os metadados</em> dos
+    Enviamos o e-mail a APIs legítimas (XposedOrNot e LeakCheck, gratuitas; e
+    opcionalmente o Have I Been Pwned) que respondem <em>apenas os metadados</em> dos
     vazamentos em que ele aparece: nome do serviço, data e quais
     <em>categorias</em> de dado foram expostas. Essas APIs <strong>não</strong>
     devolvem senhas nem dados pessoais — é essa abstração que as torna

@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     hibp_api_key: str | None = None
     hibp_user_agent: str = "DarkChecker-Academic-Project"
 
+    # Fontes gratuitas de e-mail (podem ser desativadas se a API mudar/instabilizar).
+    xposedornot_enabled: bool = True
+    leakcheck_enabled: bool = True
+
     # Comportamento de fallback e rede.
     demo_fallback: bool = True
     http_timeout: float = 10.0

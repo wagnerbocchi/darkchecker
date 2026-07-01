@@ -54,10 +54,18 @@ app.add_middleware(
 @app.get("/api/health", response_model=HealthResponse, tags=["meta"])
 async def health(settings: Settings = Depends(get_settings)) -> HealthResponse:
     """Retorna o estado da aplicação e quais integrações estão habilitadas."""
+    email_sources = []
+    if settings.xposedornot_enabled:
+        email_sources.append("xposedornot")
+    if settings.leakcheck_enabled:
+        email_sources.append("leakcheck")
+    if settings.hibp_enabled:
+        email_sources.append("hibp")
     return HealthResponse(
         version=__version__,
         hibp_email_enabled=settings.hibp_enabled,
         demo_fallback=settings.demo_fallback,
+        email_sources=email_sources,
     )
 
 

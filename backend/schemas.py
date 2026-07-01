@@ -86,3 +86,7 @@ class HealthResponse(BaseModel):
     version: str
     hibp_email_enabled: bool
     demo_fallback: bool
+    email_sources: list[str] = Field(
+        default_factory=list,
+        description="Fontes de e-mail ativas (xposedornot, leakcheck, hibp).",
+    )

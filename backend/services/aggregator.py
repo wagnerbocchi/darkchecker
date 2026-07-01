@@ -12,7 +12,7 @@ import logging
 import httpx
 
 from ..config import Settings
-from . import demo_data, hibp, passwords, xposedornot
+from . import demo_data, hibp, leakcheck, passwords, xposedornot
 
 logger = logging.getLogger("darkchecker")
 
@@ -100,14 +100,26 @@ async def check_email(email: str, settings: Settings) -> dict:
     any_source_ok = False
 
     # 1) Fonte gratuita: XposedOrNot.
-    try:
-        xon = await xposedornot.check_email(email, timeout=settings.http_timeout)
-        breaches.extend(xon)
-        sources_queried.append("xposedornot")
-        any_source_ok = True
-    except SOURCE_ERRORS as exc:
-        logger.warning("Falha no XposedOrNot: %s", exc)
-        notes.append("Fonte XposedOrNot indisponível no momento.")
+    if settings.xposedornot_enabled:
+        try:
+            xon = await xposedornot.check_email(email, timeout=settings.http_timeout)
+            breaches.extend(xon)
+            sources_queried.append("xposedornot")
+            any_source_ok = True
+        except SOURCE_ERRORS as exc:
+            logger.warning("Falha no XposedOrNot: %s", exc)
+            notes.append("Fonte XposedOrNot indisponível no momento.")
+
+    # 1b) Fonte gratuita adicional: LeakCheck (cruza com o XposedOrNot).
+    if settings.leakcheck_enabled:
+        try:
+            lc = await leakcheck.check_email(email, timeout=settings.http_timeout)
+            breaches.extend(lc)
+            sources_queried.append("leakcheck")
+            any_source_ok = True
+        except SOURCE_ERRORS as exc:
+            logger.warning("Falha no LeakCheck: %s", exc)
+            notes.append("Fonte LeakCheck indisponível no momento.")
 
     # 2) Fonte opcional (paga): HIBP, apenas se houver chave.
     if settings.hibp_enabled:

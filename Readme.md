@@ -26,8 +26,9 @@ a ele.
 
 ## ✨ Funcionalidades
 
-- **Verificação de e-mail** em vazamentos conhecidos (fonte gratuita
-  *XposedOrNot* + opcionalmente *Have I Been Pwned*).
+- **Verificação de e-mail** em vazamentos conhecidos, cruzando **duas fontes
+  gratuitas** (*XposedOrNot* + *LeakCheck*) e, opcionalmente, *Have I Been
+  Pwned* — triangulação de fontes sem manipular dados roubados.
 - **Verificação de senha por k-anonimato** (*Pwned Passwords*): a senha **nunca**
   é enviada pela rede — só os 5 primeiros caracteres do hash SHA-1.
 - **Nível de risco** e agregação de fontes, com deduplicação de vazamentos.
@@ -75,8 +76,10 @@ Todas as variáveis são opcionais (ver [`.env.example`](.env.example)):
 
 | Variável | Padrão | Descrição |
 |---|---|---|
-| `HIBP_API_KEY` | *(vazio)* | Chave paga do HIBP. Habilita a verificação de e-mail via HIBP, além da fonte gratuita. |
+| `HIBP_API_KEY` | *(vazio)* | Chave paga do HIBP. Habilita a verificação de e-mail via HIBP, além das fontes gratuitas. |
 | `HIBP_USER_AGENT` | `DarkChecker-Academic-Project` | User-Agent exigido pela API do HIBP. |
+| `XPOSEDORNOT_ENABLED` | `true` | Ativa a fonte gratuita XposedOrNot. |
+| `LEAKCHECK_ENABLED` | `true` | Ativa a fonte gratuita LeakCheck. |
 | `DEMO_FALLBACK` | `true` | Se `true`, usa dados fictícios quando as APIs externas falham. |
 | `HTTP_TIMEOUT` | `10` | Timeout (s) das chamadas externas. |
 
@@ -124,7 +127,8 @@ darkchecker/
 │   └── services/
 │       ├── passwords.py     # k-anonimato (Pwned Passwords)
 │       ├── hibp.py          # Have I Been Pwned (opcional)
-│       ├── xposedornot.py   # Fonte gratuita (padrão)
+│       ├── xposedornot.py   # Fonte gratuita de e-mail
+│       ├── leakcheck.py     # Fonte gratuita de e-mail (cruza com XposedOrNot)
 │       ├── demo_data.py     # Dados fictícios (modo demo)
 │       └── aggregator.py    # Orquestra fontes, dedup, risco
 ├── frontend/                # SPA em HTML/CSS/JS puro (sem build)
